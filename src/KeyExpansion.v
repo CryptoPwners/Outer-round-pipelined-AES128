@@ -1,13 +1,19 @@
-module KeyExpansionRound #(parameter Nk = 4, parameter Nr = 10) (roundCount, keyIn, keyOut);
-    input [3:0] roundCount;
-    input [32 * Nk - 1:0] keyIn;
+// Nk: Number of words (4 byte) in key
+// Nr: Number of key expansion rounds
 
-    output [32 * Nk - 1:0] keyOut;
+// This module contains the routine for calculating some ith round key
+module KeyExpansionRound #(parameter Nk = 4, parameter Nr = 10, parameter [3 : 0] roundCount = 0)(keyIn, keyOut); // (Round Number {ith round}, Previous Round Key {i-1 th round key}, Output Key {ith Round Key})
+    localparam keySize = Nk*32;
+
+    // input [3:0] roundCount;         // Round Number, so ith round => i
+    input [keySize - 1:0] keyIn;    // Previous Round Key as input, so i-1 th round key
+
+    output [keySize - 1:0] keyOut;  // Output Key, so the ith Round Key
 
     genvar i;
 
     // Split the key into Nk words
-    wire [31:0] words[Nk - 1:0];
+    wire [31:0] words[Nk - 1:0]; // An array of 32 bit values, with Nk elements (basically to store key as words)
 
     generate
         for (i = 0; i < Nk; i = i + 1) begin: KeySplitLoop
@@ -64,26 +70,42 @@ module KeyExpansionRound #(parameter Nk = 4, parameter Nr = 10) (roundCount, key
     endgenerate
 endmodule
 
-module KeyExpansion #(parameter Nk = 4, parameter Nr = 10) (keyIn, keysOut);    
+module KeyExpansion #(parameter Nk = 4, parameter Nr = 10) (keyIn, keysOut, clk);
     localparam rounds = (Nr == 10 ? 9 : (Nr == 12 ? 7 : 6));
 
-    input [(Nk * 32) - 1:0] keyIn;
-    output  [((Nr + 1) * 128) - 1:0] keysOut;
+    localparam keySize = Nk*32;
 
-    assign keysOut[((Nr + 1) * 128) - 1 -: (Nk * 32)] = keyIn;
+    input [keySize - 1:0] keyIn;
+    output reg [((Nr + 1) * keySize) - 1:0] keysOut;
+    input clk;
+
+    // assign keysOut[((Nr + 1) * keySize) - 1 -: keySize] = keyIn;
+
+    wire [keySize-1:0] keysOutWireArray [Nr:1];
+
+    // assign keysOutWireArray[0] = keyIn;
+    always @(*) begin
+        keysOut[((Nr+1)*keySize)-1 -: keySize] <= keyIn;
+    end
 
     // Perform the key expansion rounds (KeyExpansionRound)
     genvar i;
     generate
-        for (i = 0; i < rounds; i = i + 1) begin: KeyExpansionRoundLoop
-            KeyExpansionRound #(Nk, Nr) keyExpansionRound(i[3:0] + 4'b0001, keysOut[((Nr + 1) * 128) - 1 - i * (Nk * 32) -: (Nk * 32)], keysOut[((Nr + 1) * 128) - 1 - (i + 1) * (Nk * 32) -: (Nk * 32)]);
+        for (i = 1; i <= rounds; i = i + 1) begin: KeyExpansionRoundLoop
+            KeyExpansionRound #(Nk, Nr, i) keyExpansionRound(keysOut[((Nr + 2 - i) * keySize) - 1 -: keySize], keysOutWireArray[i]); // WARN: Please recheck the indexing I'm loosing my mind
         end
     endgenerate
 
     // Perform the last key expansion round (LastKeyExpansionRound)
-    wire [Nk * 32 - 1:0] lastkey;
-    KeyExpansionRound #(Nk, Nr) lastKeyExpansionRound(rounds[3:0] + 4'b0001, keysOut[128 +: (Nk * 32)], lastkey);
+    wire [keySize - 1:0] lastkey;
+    KeyExpansionRound #(Nk, Nr, rounds[3:0] + 4'b0001) lastKeyExpansionRound (keysOut[128 +: keySize], lastkey);
 
-    assign keysOut[127:0] = lastkey[Nk * 32 - 1 -: 128];
+    assign keysOutWireArray[Nr] = lastkey[keySize - 1 -: 128];
+
+    integer j;
+    always @(posedge clk) begin
+        for(j=1; j<=Nr; j=j+1) begin
+            keysOut[(Nr+1-j) * keySize -1 -: keySize] <= keysOutWireArray[j]; // WARN: Please recheck the indexing this is driving me crazy
+        end
+    end
 endmodule
-
