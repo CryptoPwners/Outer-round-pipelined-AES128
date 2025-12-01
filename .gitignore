@@ -1,5 +1,5 @@
 # Exclude the Vivado project directory
-/Fully-pipelined-AES128/
+/Outer-round-pipelined-AES128/
 
 # Exclude all files and folders within folders for individual IPs
 # inside the ip folder
