@@ -37,6 +37,13 @@ directory as design sources and those under the [`test`](test) directory
 as simulation sources to a new Vivado project. Then, add the constraints
 file [`constraints/pynq_z2.xdc`](constraints/pynq_z2.xdc).
 
+If you merely wish to simulate the design and do not want to implement it
+on a Xilinx board, any conformant simulator should work. The Verilog
+source is portable; as no Xilinx-specific primitives are instantiated,
+you should be able to implement the design with minimal change on other
+platforms as well (or even in ASIC). However, in both cases, the
+given constraints file should be omitted.
+
 ## Results
 
 The design was implemented on a PYNQ-Z2 FPGA development board interfaced with
