@@ -1,4 +1,4 @@
-# Outer-round-pipelined-AES128
+# Outer-round Pipelined AES-128
 
 Repository for project work done in partial fulfilment of the requirements
 of the course [CS666: Hardware Security for Internet-of-Things](https://www.cse.iitk.ac.in/pages/CS666.html)
